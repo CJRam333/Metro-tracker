@@ -1,0 +1,89 @@
+[{
+  "_meta": {
+    "source": "Compiled from Wikipedia/Wikidata station coordinates + verified geocoding, June 2026",
+    "accuracy_note": "Coordinates accurate to roughly 30-100m. Confirmed exact (Wikidata) for: Miyapur, JNTU College, KPHB Colony, Kukatpally. Recommend spot-checking remaining stations against Google Maps before production use — search 'STATION_NAME metro station hyderabad' on Google Maps and update lat/lng if it drifts.",
+    "total_stations": 57,
+    "lines": ["Red Line", "Blue Line", "Green Line"]
+  },
+  "lines": {
+    "red": {
+      "name": "Red Line",
+      "terminals": ["Miyapur", "LB Nagar"],
+      "stations": [
+        { "seq": 1,  "name": "Miyapur",                       "lat": 17.4964, "lng": 78.3731, "interchange": null },
+        { "seq": 2,  "name": "JNTU College",                  "lat": 17.4986, "lng": 78.3888, "interchange": null },
+        { "seq": 3,  "name": "KPHB Colony",                   "lat": 17.4938, "lng": 78.4018, "interchange": null },
+        { "seq": 4,  "name": "Kukatpally",                    "lat": 17.4853, "lng": 78.4094, "interchange": null },
+        { "seq": 5,  "name": "Dr. B.R. Ambedkar Balanagar",   "lat": 17.4673, "lng": 78.4488, "interchange": null },
+        { "seq": 6,  "name": "Moosapet",                      "lat": 17.4736, "lng": 78.4302, "interchange": null },
+        { "seq": 7,  "name": "Bharat Nagar",                  "lat": 17.4691, "lng": 78.4393, "interchange": null },
+        { "seq": 8,  "name": "Erragadda",                     "lat": 17.4592, "lng": 78.4423, "interchange": null },
+        { "seq": 9,  "name": "ESI Hospital",                  "lat": 17.4523, "lng": 78.4471, "interchange": null },
+        { "seq": 10, "name": "S.R. Nagar",                    "lat": 17.4448, "lng": 78.4498, "interchange": null },
+        { "seq": 11, "name": "Ameerpet",                      "lat": 17.4374, "lng": 78.4482, "interchange": "Blue Line" },
+        { "seq": 12, "name": "Punjagutta",                    "lat": 17.4254, "lng": 78.4525, "interchange": null },
+        { "seq": 13, "name": "Irrum Manzil",                  "lat": 17.4198, "lng": 78.4584, "interchange": null },
+        { "seq": 14, "name": "Khairatabad",                   "lat": 17.4119, "lng": 78.4609, "interchange": null },
+        { "seq": 15, "name": "Lakdi-ka-pul",                  "lat": 17.4047, "lng": 78.4655, "interchange": null },
+        { "seq": 16, "name": "Assembly",                      "lat": 17.4022, "lng": 78.4737, "interchange": null },
+        { "seq": 17, "name": "Nampally",                      "lat": 17.3947, "lng": 78.4762, "interchange": null },
+        { "seq": 18, "name": "Gandhi Bhavan",                 "lat": 17.3886, "lng": 78.4818, "interchange": null },
+        { "seq": 19, "name": "Osmania Medical College",       "lat": 17.3811, "lng": 78.4845, "interchange": null },
+        { "seq": 20, "name": "MG Bus Station (MGBS)",         "lat": 17.3753, "lng": 78.4825, "interchange": "Green Line" },
+        { "seq": 21, "name": "Malakpet",                      "lat": 17.3724, "lng": 78.4988, "interchange": null },
+        { "seq": 22, "name": "New Market",                    "lat": 17.3717, "lng": 78.5045, "interchange": null },
+        { "seq": 23, "name": "Musarambagh",                   "lat": 17.3692, "lng": 78.5126, "interchange": null },
+        { "seq": 24, "name": "Dilsukhnagar",                  "lat": 17.3687, "lng": 78.5247, "interchange": null },
+        { "seq": 25, "name": "Chaitanyapuri",                 "lat": 17.3658, "lng": 78.5341, "interchange": null },
+        { "seq": 26, "name": "Victoria Memorial",              "lat": 17.3632, "lng": 78.5421, "interchange": null },
+        { "seq": 27, "name": "LB Nagar",                      "lat": 17.3534, "lng": 78.5530, "interchange": null }
+      ]
+    },
+    "blue": {
+      "name": "Blue Line",
+      "terminals": ["Raidurg", "Nagole"],
+      "stations": [
+        { "seq": 1,  "name": "Raidurg",                       "lat": 17.4296, "lng": 78.3739, "interchange": null },
+        { "seq": 2,  "name": "HITEC City",                    "lat": 17.4474, "lng": 78.3772, "interchange": null },
+        { "seq": 3,  "name": "Durgam Cheruvu",                "lat": 17.4339, "lng": 78.3905, "interchange": null },
+        { "seq": 4,  "name": "Madhapur",                      "lat": 17.4458, "lng": 78.3914, "interchange": null },
+        { "seq": 5,  "name": "Peddamma Gudi",                 "lat": 17.4366, "lng": 78.4034, "interchange": null },
+        { "seq": 6,  "name": "Jubilee Hills Check Post",      "lat": 17.4308, "lng": 78.4119, "interchange": null },
+        { "seq": 7,  "name": "Road No. 5 Jubilee Hills",      "lat": 17.4254, "lng": 78.4172, "interchange": null },
+        { "seq": 8,  "name": "Yusufguda",                     "lat": 17.4258, "lng": 78.4296, "interchange": null },
+        { "seq": 9,  "name": "Madhura Nagar",                 "lat": 17.4313, "lng": 78.4392, "interchange": null },
+        { "seq": 10, "name": "Ameerpet",                      "lat": 17.4374, "lng": 78.4482, "interchange": "Red Line" },
+        { "seq": 11, "name": "Begumpet",                      "lat": 17.4436, "lng": 78.4654, "interchange": null },
+        { "seq": 12, "name": "Prakash Nagar",                 "lat": 17.4477, "lng": 78.4716, "interchange": null },
+        { "seq": 13, "name": "Rasoolpura",                    "lat": 17.4516, "lng": 78.4798, "interchange": null },
+        { "seq": 14, "name": "Paradise",                      "lat": 17.4456, "lng": 78.4887, "interchange": null },
+        { "seq": 15, "name": "Parade Ground",                 "lat": 17.4477, "lng": 78.4982, "interchange": "Green Line" },
+        { "seq": 16, "name": "Secunderabad East",             "lat": 17.4376, "lng": 78.5053, "interchange": null },
+        { "seq": 17, "name": "Mettuguda",                     "lat": 17.4254, "lng": 78.5092, "interchange": null },
+        { "seq": 18, "name": "Tarnaka",                       "lat": 17.4263, "lng": 78.5247, "interchange": null },
+        { "seq": 19, "name": "Habsiguda",                     "lat": 17.4192, "lng": 78.5378, "interchange": null },
+        { "seq": 20, "name": "NGRI",                          "lat": 17.4198, "lng": 78.5512, "interchange": null },
+        { "seq": 21, "name": "Stadium",                       "lat": 17.4118, "lng": 78.5598, "interchange": null },
+        { "seq": 22, "name": "Uppal",                         "lat": 17.4034, "lng": 78.5598, "interchange": null },
+        { "seq": 23, "name": "Nagole",                        "lat": 17.3899, "lng": 78.5618, "interchange": null }
+      ]
+    },
+    "green": {
+      "name": "Green Line",
+      "terminals": ["JBS Parade Ground", "MGBS"],
+      "stations": [
+        { "seq": 1,  "name": "JBS Parade Ground",             "lat": 17.4516, "lng": 78.4992, "interchange": null },
+        { "seq": 2,  "name": "Parade Ground",                 "lat": 17.4477, "lng": 78.4982, "interchange": "Blue Line" },
+        { "seq": 3,  "name": "Secunderabad West",             "lat": 17.4382, "lng": 78.4995, "interchange": null },
+        { "seq": 4,  "name": "Gandhi Hospital",                "lat": 17.4271, "lng": 78.4982, "interchange": null },
+        { "seq": 5,  "name": "Musheerabad",                   "lat": 17.4189, "lng": 78.4954, "interchange": null },
+        { "seq": 6,  "name": "RTC X Roads",                   "lat": 17.4087, "lng": 78.4926, "interchange": null },
+        { "seq": 7,  "name": "Chikkadpally",                  "lat": 17.4029, "lng": 78.4938, "interchange": null },
+        { "seq": 8,  "name": "Narayanguda",                   "lat": 17.3974, "lng": 78.4889, "interchange": null },
+        { "seq": 9,  "name": "Sultan Bazaar",                 "lat": 17.3866, "lng": 78.4853, "interchange": null },
+        { "seq": 10, "name": "MG Bus Station (MGBS)",         "lat": 17.3753, "lng": 78.4825, "interchange": "Red Line" }
+      ]
+    }
+  }
+}
+]
