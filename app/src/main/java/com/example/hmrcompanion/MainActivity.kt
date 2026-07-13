@@ -3,26 +3,48 @@ package com.example.hmrcompanion
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.hmrcompanion.data.AndroidAssetReader
+import com.example.hmrcompanion.data.StationRepository
+import com.example.hmrcompanion.ui.TripPlannerScreen
+import com.example.hmrcompanion.ui.TripPlannerViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val assetReader = AndroidAssetReader(this)
+        val stationRepository = StationRepository(assetReader)
+
+        val factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(TripPlannerViewModel::class.java)) {
+                    @Suppress("UNCHECKED_CAST")
+                    return TripPlannerViewModel(stationRepository) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
+
         setContent {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(text = "HMR Companion")
-                    }
+                    val tripPlannerViewModel: TripPlannerViewModel = viewModel(factory = factory)
+                    TripPlannerScreen(
+                        viewModel = tripPlannerViewModel,
+                        onTripStarted = { _, _, _ ->
+                            // No-op for now
+                        }
+                    )
                 }
             }
         }
