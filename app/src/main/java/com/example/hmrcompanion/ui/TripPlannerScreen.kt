@@ -1,22 +1,46 @@
 package com.example.hmrcompanion.ui
 
-import androidx.compose.foundation.clickable
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripPlannerScreen(
     viewModel: TripPlannerViewModel,
-    onTripStarted: (lineKey: String, fromStation: String, toStation: String) -> Unit
+    onTripStarted: (lineKey: String, fromStation: String, toStation: String) -> Unit,
+    onTripStopped: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var permissionDeniedMessage by remember { mutableStateOf<String?>(null) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                permissionDeniedMessage = null
+                val state = uiState
+                if (state.selectedLine != null && state.fromStation != null && state.toStation != null) {
+                    viewModel.setTrackingActive(true)
+                    onTripStarted(state.selectedLine.key, state.fromStation.name, state.toStation.name)
+                }
+            } else {
+                permissionDeniedMessage = "Location permission is required to track your trip"
+            }
+        }
+    )
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -182,17 +206,48 @@ fun TripPlannerScreen(
                 }
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Button(
-                    onClick = {
-                        val state = uiState
-                        if (state.selectedLine != null && state.fromStation != null && state.toStation != null) {
-                            onTripStarted(state.selectedLine.key, state.fromStation.name, state.toStation.name)
-                        }
-                    },
-                    enabled = viewModel.canStartTrip(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Start Trip")
+                if (permissionDeniedMessage != null) {
+                    Text(
+                        text = permissionDeniedMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
+                if (!uiState.isTrackingActive) {
+                    Button(
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                val state = uiState
+                                if (state.selectedLine != null && state.fromStation != null && state.toStation != null) {
+                                    viewModel.setTrackingActive(true)
+                                    onTripStarted(state.selectedLine.key, state.fromStation.name, state.toStation.name)
+                                }
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                            }
+                        },
+                        enabled = viewModel.canStartTrip(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Start Trip")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            viewModel.setTrackingActive(false)
+                            onTripStopped()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Stop Trip")
+                    }
                 }
             }
         }

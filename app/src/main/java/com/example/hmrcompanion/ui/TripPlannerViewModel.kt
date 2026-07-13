@@ -20,7 +20,8 @@ data class TripPlannerUiState(
     val selectedLine: MetroLine? = null,
     val stationsForSelectedLine: List<Station> = emptyList(),
     val fromStation: Station? = null,
-    val toStation: Station? = null
+    val toStation: Station? = null,
+    val isTrackingActive: Boolean = false
 )
 
 class TripPlannerViewModel(private val repository: StationRepository) : ViewModel() {
@@ -81,6 +82,11 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
         return state.selectedLine != null &&
                state.fromStation != null &&
                state.toStation != null &&
-               state.fromStation.name != state.toStation.name
+               state.fromStation.name != state.toStation.name &&
+               !state.isTrackingActive
+    }
+
+    fun setTrackingActive(active: Boolean) {
+        _uiState.value = _uiState.value.copy(isTrackingActive = active)
     }
 }

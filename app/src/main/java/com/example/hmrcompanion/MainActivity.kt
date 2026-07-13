@@ -10,8 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.content.Intent
 import com.example.hmrcompanion.data.AndroidAssetReader
 import com.example.hmrcompanion.data.StationRepository
+import com.example.hmrcompanion.data.TripService
 import com.example.hmrcompanion.ui.TripPlannerScreen
 import com.example.hmrcompanion.ui.TripPlannerViewModel
 
@@ -41,8 +43,19 @@ class MainActivity : ComponentActivity() {
                     val tripPlannerViewModel: TripPlannerViewModel = viewModel(factory = factory)
                     TripPlannerScreen(
                         viewModel = tripPlannerViewModel,
-                        onTripStarted = { _, _, _ ->
-                            // No-op for now
+                        onTripStarted = { lineKey, fromStation, toStation ->
+                            val serviceIntent = Intent(this@MainActivity, TripService::class.java).apply {
+                                putExtra("destination", toStation)
+                                putExtra("nextStop", fromStation)
+                                putExtra("lineKey", lineKey)
+                                putExtra("fromStation", fromStation)
+                                putExtra("toStation", toStation)
+                            }
+                            startForegroundService(serviceIntent)
+                        },
+                        onTripStopped = {
+                            val serviceIntent = Intent(this@MainActivity, TripService::class.java)
+                            stopService(serviceIntent)
                         }
                     )
                 }
