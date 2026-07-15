@@ -12,12 +12,20 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.example.hmrcompanion.domain.RouteFinder
+import com.example.hmrcompanion.domain.TripProgressEvent
+import com.example.hmrcompanion.domain.TripProgressManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class TripService : Service() {
 
@@ -25,9 +33,18 @@ class TripService : Service() {
     private lateinit var locationCallback: LocationCallback
     private lateinit var localBroadcastManager: LocalBroadcastManager
 
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private var tripProgressManager: TripProgressManager? = null
+
+    private var hasAlertedDestination = false
+    private var destinationName: String = "Unknown"
+
     companion object {
         private const val CHANNEL_ID = "hmr_trip_channel"
+        private const val ALERT_CHANNEL_ID = "hmr_alert_channel"
         private const val NOTIFICATION_ID = 1
+        private const val ALERT_NOTIFICATION_ID = 2
         const val ACTION_LOCATION_UPDATE = "com.hmr.LOCATION_UPDATE"
         const val EXTRA_LAT = "lat"
         const val EXTRA_LNG = "lng"
@@ -46,6 +63,11 @@ class TripService : Service() {
                         putExtra(EXTRA_LNG, location.longitude)
                     }
                     localBroadcastManager.sendBroadcast(intent)
+
+                    tripProgressManager?.let { manager ->
+                        val event = manager.onLocationUpdate(location.latitude, location.longitude)
+                        handleTripEvent(event)
+                    }
                 }
             }
         }
@@ -53,25 +75,77 @@ class TripService : Service() {
 
     @SuppressLint("MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val destination = intent?.getStringExtra("destination") ?: "Unknown"
-        val nextStop = intent?.getStringExtra("nextStop") ?: "Unknown"
+        val lineKey = intent?.getStringExtra("lineKey")
+        val fromStation = intent?.getStringExtra("fromStation")
+        val toStation = intent?.getStringExtra("toStation")
 
-        createNotificationChannel()
-        val notification = createNotification(destination, nextStop)
+        destinationName = toStation ?: "Unknown"
 
+        createNotificationChannels()
+        val notification = createNotification(destinationName, "Loading...")
         startForeground(NOTIFICATION_ID, notification)
 
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
-            .setMinUpdateIntervalMillis(3000L)
-            .build()
+        if (lineKey != null && fromStation != null && toStation != null) {
+            serviceScope.launch {
+                try {
+                    val repo = StationRepository(AndroidAssetReader(this@TripService))
+                    val line = repo.getLine(lineKey)
+                    if (line != null) {
+                        val route = RouteFinder(line).findRoute(fromStation, toStation)
+                        tripProgressManager = TripProgressManager(route)
 
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            Looper.getMainLooper()
-        )
+                        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
+                            .setMinUpdateIntervalMillis(3000L)
+                            .build()
+
+                        fusedLocationClient.requestLocationUpdates(
+                            locationRequest,
+                            locationCallback,
+                            Looper.getMainLooper()
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Handle failure gracefully in a real app
+                }
+            }
+        }
 
         return START_NOT_STICKY
+    }
+
+    private fun handleTripEvent(event: TripProgressEvent) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        when (event) {
+            is TripProgressEvent.Travelling -> {
+                val distanceKm = event.distanceMeters / 1000.0
+                val distanceStr = String.format("%.1f km", distanceKm)
+                val notification = createNotification(destinationName, "${event.nextStation.name} ($distanceStr)")
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            is TripProgressEvent.ApproachingIntermediate -> {
+                val notification = createNotification(destinationName, event.station.name)
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            is TripProgressEvent.ApproachingDestination -> {
+                val notification = createNotification(destinationName, event.station.name)
+                notificationManager.notify(NOTIFICATION_ID, notification)
+
+                if (!hasAlertedDestination) {
+                    hasAlertedDestination = true
+                    val alertNotification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                        .setContentTitle("Your stop is coming up!")
+                        .setContentText("Get ready — ${event.station.name} is less than 400m away")
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .build()
+                    notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification)
+                }
+            }
+            is TripProgressEvent.RouteComplete -> {
+                stopSelf()
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -80,6 +154,7 @@ class TripService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceJob.cancel()
         fusedLocationClient.removeLocationUpdates(locationCallback)
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
@@ -89,15 +164,22 @@ class TripService : Service() {
         stopSelf()
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val tripChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Trip Tracking",
                 NotificationManager.IMPORTANCE_LOW
             )
+
+            val alertChannel = NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Station Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            )
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(tripChannel)
+            notificationManager.createNotificationChannel(alertChannel)
         }
     }
 
@@ -107,7 +189,6 @@ class TripService : Service() {
             .setContentText("Travelling to: $destination\nNext stop: $nextStop")
             .setStyle(NotificationCompat.BigTextStyle()
                 .bigText("Travelling to: $destination\nNext stop: $nextStop"))
-            // We don't have an icon setup yet, just providing a dummy fallback
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .build()
