@@ -1,0 +1,196 @@
+package com.example.hmrcompanion.data
+
+import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.os.Looper
+import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.example.hmrcompanion.domain.RouteFinder
+import com.example.hmrcompanion.domain.TripProgressEvent
+import com.example.hmrcompanion.domain.TripProgressManager
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+class TripService : Service() {
+
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationCallback: LocationCallback
+    private lateinit var localBroadcastManager: LocalBroadcastManager
+
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private var tripProgressManager: TripProgressManager? = null
+
+    private var hasAlertedDestination = false
+    private var destinationName: String = "Unknown"
+
+    companion object {
+        private const val CHANNEL_ID = "hmr_trip_channel"
+        private const val ALERT_CHANNEL_ID = "hmr_alert_channel"
+        private const val NOTIFICATION_ID = 1
+        private const val ALERT_NOTIFICATION_ID = 2
+        const val ACTION_LOCATION_UPDATE = "com.hmr.LOCATION_UPDATE"
+        const val EXTRA_LAT = "lat"
+        const val EXTRA_LNG = "lng"
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        localBroadcastManager = LocalBroadcastManager.getInstance(this)
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    val intent = Intent(ACTION_LOCATION_UPDATE).apply {
+                        putExtra(EXTRA_LAT, location.latitude)
+                        putExtra(EXTRA_LNG, location.longitude)
+                    }
+                    localBroadcastManager.sendBroadcast(intent)
+
+                    tripProgressManager?.let { manager ->
+                        val event = manager.onLocationUpdate(location.latitude, location.longitude)
+                        handleTripEvent(event)
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val lineKey = intent?.getStringExtra("lineKey")
+        val fromStation = intent?.getStringExtra("fromStation")
+        val toStation = intent?.getStringExtra("toStation")
+
+        destinationName = toStation ?: "Unknown"
+
+        createNotificationChannels()
+        val notification = createNotification(destinationName, "Loading...")
+        startForeground(NOTIFICATION_ID, notification)
+
+        if (lineKey != null && fromStation != null && toStation != null) {
+            serviceScope.launch {
+                try {
+                    val repo = StationRepository(AndroidAssetReader(this@TripService))
+                    val line = repo.getLine(lineKey)
+                    if (line != null) {
+                        val route = RouteFinder(line).findRoute(fromStation, toStation)
+                        tripProgressManager = TripProgressManager(route)
+
+                        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
+                            .setMinUpdateIntervalMillis(3000L)
+                            .build()
+
+                        fusedLocationClient.requestLocationUpdates(
+                            locationRequest,
+                            locationCallback,
+                            Looper.getMainLooper()
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Handle failure gracefully in a real app
+                }
+            }
+        }
+
+        return START_NOT_STICKY
+    }
+
+    private fun handleTripEvent(event: TripProgressEvent) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        when (event) {
+            is TripProgressEvent.Travelling -> {
+                val distanceKm = event.distanceMeters / 1000.0
+                val distanceStr = String.format("%.1f km", distanceKm)
+                val notification = createNotification(destinationName, "${event.nextStation.name} ($distanceStr)")
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            is TripProgressEvent.ApproachingIntermediate -> {
+                val notification = createNotification(destinationName, event.station.name)
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            is TripProgressEvent.ApproachingDestination -> {
+                val notification = createNotification(destinationName, event.station.name)
+                notificationManager.notify(NOTIFICATION_ID, notification)
+
+                if (!hasAlertedDestination) {
+                    hasAlertedDestination = true
+                    val alertNotification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                        .setContentTitle("Your stop is coming up!")
+                        .setContentText("Get ready — ${event.station.name} is less than 400m away")
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .build()
+                    notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification)
+                }
+            }
+            is TripProgressEvent.RouteComplete -> {
+                stopSelf()
+            }
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceJob.cancel()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        stopSelf()
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val tripChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Trip Tracking",
+                NotificationManager.IMPORTANCE_LOW
+            )
+
+            val alertChannel = NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Station Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(tripChannel)
+            notificationManager.createNotificationChannel(alertChannel)
+        }
+    }
+
+    private fun createNotification(destination: String, nextStop: String): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("HMR Companion")
+            .setContentText("Travelling to: $destination\nNext stop: $nextStop")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("Travelling to: $destination\nNext stop: $nextStop"))
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setOngoing(true)
+            .build()
+    }
+}
