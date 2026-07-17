@@ -92,4 +92,3 @@ ahead of schedule, even if they seem easy or related.
 - Don't add a backend, cloud sync, or analytics.
 - Don't implement Milestone 3 (share-intent ticket import) or Milestone 4
   (settings/polish) features until tickets for those milestones exist.
-

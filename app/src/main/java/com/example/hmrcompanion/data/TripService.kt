@@ -9,8 +9,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.content.pm.PackageManager
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.hmrcompanion.domain.RouteFinder
 import com.example.hmrcompanion.domain.TripProgressEvent
@@ -83,6 +85,11 @@ class TripService : Service() {
 
         createNotificationChannels()
         val notification = createNotification(destinationName, "Loading...")
+
+        // startForeground MUST be called unconditionally if started via startForegroundService,
+        // even if the user has revoked notification permissions, otherwise the app crashes
+        // with ForegroundServiceDidNotStartInTimeException. The OS will just silently drop
+        // the notification visually if the permission is missing.
         startForeground(NOTIFICATION_ID, notification)
 
         if (lineKey != null && fromStation != null && toStation != null) {
@@ -115,20 +122,24 @@ class TripService : Service() {
 
     private fun handleTripEvent(event: TripProgressEvent) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
         when (event) {
             is TripProgressEvent.Travelling -> {
                 val distanceKm = event.distanceMeters / 1000.0
                 val distanceStr = String.format("%.1f km", distanceKm)
                 val notification = createNotification(destinationName, "${event.nextStation.name} ($distanceStr)")
-                notificationManager.notify(NOTIFICATION_ID, notification)
+                if (canNotify) notificationManager.notify(NOTIFICATION_ID, notification)
             }
             is TripProgressEvent.ApproachingIntermediate -> {
                 val notification = createNotification(destinationName, event.station.name)
-                notificationManager.notify(NOTIFICATION_ID, notification)
+                if (canNotify) notificationManager.notify(NOTIFICATION_ID, notification)
             }
             is TripProgressEvent.ApproachingDestination -> {
                 val notification = createNotification(destinationName, event.station.name)
-                notificationManager.notify(NOTIFICATION_ID, notification)
+                if (canNotify) notificationManager.notify(NOTIFICATION_ID, notification)
 
                 if (!hasAlertedDestination) {
                     hasAlertedDestination = true
@@ -139,7 +150,7 @@ class TripService : Service() {
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true)
                         .build()
-                    notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification)
+                    if (canNotify) notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification)
                 }
             }
             is TripProgressEvent.RouteComplete -> {
