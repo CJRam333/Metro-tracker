@@ -2,7 +2,7 @@ package com.example.hmrcompanion.domain
 
 class TripProgressManager(
     private val route: List<Station>,
-    private val alertThresholdMeters: Double = 400.0
+    private val alertThresholdMeters: Int = 400
 ) {
     internal var lastConfirmedIndex: Int? = null
 

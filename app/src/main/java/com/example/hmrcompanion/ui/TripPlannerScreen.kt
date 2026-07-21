@@ -20,12 +20,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.hmrcompanion.domain.PlannedRoute
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripPlannerScreen(
     viewModel: TripPlannerViewModel,
-    onTripStarted: (lineKey: String, fromStation: String, toStation: String) -> Unit,
+    onTripStarted: (route: PlannedRoute, alertDistanceMeters: Int) -> Unit,
     onTripStopped: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -53,10 +55,11 @@ fun TripPlannerScreen(
                 locationGranted && notificationsGranted -> {
                     permissionDeniedMessage = null
                     showSettingsButton = false
-                    val state = uiState
-                    if (state.selectedLine != null && state.fromStation != null && state.toStation != null) {
+
+                    val plannedRoute = viewModel.getPlannedRoute()
+                    if (plannedRoute != null) {
                         viewModel.setTrackingActive(true)
-                        onTripStarted(state.selectedLine.key, state.fromStation.name, state.toStation.name)
+                        onTripStarted(plannedRoute, uiState.alertDistanceMeters)
                     }
                 }
                 !locationGranted -> {
@@ -111,39 +114,6 @@ fun TripPlannerScreen(
                 Text(text = "Plan Trip", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Line Selection
-                var lineExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = lineExpanded,
-                    onExpandedChange = { lineExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = uiState.selectedLine?.name ?: "Select Line",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Metro Line") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = lineExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = lineExpanded,
-                        onDismissRequest = { lineExpanded = false }
-                    ) {
-                        uiState.allLines.forEach { line ->
-                            DropdownMenuItem(
-                                text = { Text(line.name) },
-                                onClick = {
-                                    viewModel.selectLine(line.key)
-                                    lineExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // From Station Selection
                 var fromExpanded by remember { mutableStateOf(false) }
                 var fromSearchText by remember { mutableStateOf(uiState.fromStation?.name ?: "") }
@@ -168,15 +138,15 @@ fun TripPlannerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        enabled = uiState.selectedLine != null,
+                        enabled = !uiState.isTrackingActive,
                         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done)
                     )
 
-                    val filteredFrom = uiState.stationsForSelectedLine.filter {
+                    val filteredFrom = uiState.allStations.filter {
                         it.name.contains(fromSearchText, ignoreCase = true)
                     }
 
-                    if (filteredFrom.isNotEmpty() && uiState.selectedLine != null) {
+                    if (filteredFrom.isNotEmpty() && !uiState.isTrackingActive) {
                         ExposedDropdownMenu(
                             expanded = fromExpanded,
                             onDismissRequest = { fromExpanded = false }
@@ -220,15 +190,15 @@ fun TripPlannerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        enabled = uiState.selectedLine != null,
+                        enabled = !uiState.isTrackingActive,
                         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done)
                     )
 
-                    val filteredTo = uiState.stationsForSelectedLine.filter {
+                    val filteredTo = uiState.allStations.filter {
                         it.name.contains(toSearchText, ignoreCase = true) && it.name != uiState.fromStation?.name
                     }
 
-                    if (filteredTo.isNotEmpty() && uiState.selectedLine != null) {
+                    if (filteredTo.isNotEmpty() && !uiState.isTrackingActive) {
                         ExposedDropdownMenu(
                             expanded = toExpanded,
                             onDismissRequest = { toExpanded = false }
@@ -246,6 +216,18 @@ fun TripPlannerScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text("Alert me when: ${uiState.alertDistanceMeters}m away")
+                Slider(
+                    value = uiState.alertDistanceMeters.toFloat(),
+                    onValueChange = { viewModel.setAlertDistance(it.roundToInt()) },
+                    valueRange = 200f..1000f,
+                    steps = 15, // (1000 - 200) / 50 - 1 = 15 steps between the endpoints
+                    enabled = !uiState.isTrackingActive,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
 
                 if (permissionDeniedMessage != null) {
@@ -288,10 +270,10 @@ fun TripPlannerScreen(
                             }
 
                             if (locationGranted && notificationsGranted) {
-                                val state = uiState
-                                if (state.selectedLine != null && state.fromStation != null && state.toStation != null) {
+                                val plannedRoute = viewModel.getPlannedRoute()
+                                if (plannedRoute != null) {
                                     viewModel.setTrackingActive(true)
-                                    onTripStarted(state.selectedLine.key, state.fromStation.name, state.toStation.name)
+                                    onTripStarted(plannedRoute, uiState.alertDistanceMeters)
                                 }
                             } else {
                                 permissionLauncher.launch(permissionsToRequest)

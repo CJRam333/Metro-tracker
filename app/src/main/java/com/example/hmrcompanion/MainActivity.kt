@@ -16,6 +16,8 @@ import com.example.hmrcompanion.data.StationRepository
 import com.example.hmrcompanion.data.TripService
 import com.example.hmrcompanion.ui.TripPlannerScreen
 import com.example.hmrcompanion.ui.TripPlannerViewModel
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,13 +45,14 @@ class MainActivity : ComponentActivity() {
                     val tripPlannerViewModel: TripPlannerViewModel = viewModel(factory = factory)
                     TripPlannerScreen(
                         viewModel = tripPlannerViewModel,
-                        onTripStarted = { lineKey, fromStation, toStation ->
+                        onTripStarted = { plannedRoute, alertDistanceMeters ->
                             val serviceIntent = Intent(this@MainActivity, TripService::class.java).apply {
-                                putExtra("destination", toStation)
-                                putExtra("nextStop", fromStation)
-                                putExtra("lineKey", lineKey)
-                                putExtra("fromStation", fromStation)
-                                putExtra("toStation", toStation)
+                                putExtra("flatStationsJson", Json.encodeToString(plannedRoute.flatStations()))
+                                putExtra("interchangeStationsJson", Json.encodeToString(plannedRoute.interchangeStations))
+                                putExtra("plannedRouteJson", Json.encodeToString(plannedRoute))
+                                putExtra("alertDistanceMeters", alertDistanceMeters)
+                                putExtra("destination", plannedRoute.flatStations().last().name)
+                                putExtra("nextStop", plannedRoute.flatStations().first().name)
                             }
                             startForegroundService(serviceIntent)
                         },
