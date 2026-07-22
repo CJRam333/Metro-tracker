@@ -54,6 +54,7 @@ class TripService : Service() {
         const val ACTION_LOCATION_UPDATE = "com.hmr.LOCATION_UPDATE"
         const val EXTRA_LAT = "lat"
         const val EXTRA_LNG = "lng"
+        const val EXTRA_LAST_CONFIRMED_INDEX = "lastConfirmedIndex"
     }
 
     override fun onCreate() {
@@ -64,16 +65,17 @@ class TripService : Service() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
-                    val intent = Intent(ACTION_LOCATION_UPDATE).apply {
-                        putExtra(EXTRA_LAT, location.latitude)
-                        putExtra(EXTRA_LNG, location.longitude)
-                    }
-                    localBroadcastManager.sendBroadcast(intent)
-
                     tripProgressManager?.let { manager ->
                         val event = manager.onLocationUpdate(location.latitude, location.longitude)
                         handleTripEvent(event)
                     }
+
+                    val intent = Intent(ACTION_LOCATION_UPDATE).apply {
+                        putExtra(EXTRA_LAT, location.latitude)
+                        putExtra(EXTRA_LNG, location.longitude)
+                        putExtra(EXTRA_LAST_CONFIRMED_INDEX, tripProgressManager?.lastConfirmedIndex ?: -1)
+                    }
+                    localBroadcastManager.sendBroadcast(intent)
                 }
             }
         }
@@ -131,7 +133,7 @@ class TripService : Service() {
                 val distanceKm = event.distanceMeters / 1000.0
                 val distanceStr = String.format("%.1f km", distanceKm)
 
-                val index = tripProgressManager?.lastConfirmedIndex?.plus(1) ?: 1
+                val index = (tripProgressManager?.lastConfirmedIndex ?: -1) + 1
                 val hint = plannedRoute?.transferHintAt(index)
 
                 val nextStopText = if (hint != null) "${event.nextStation.name} ($hint) ($distanceStr)" else "${event.nextStation.name} ($distanceStr)"
@@ -140,7 +142,7 @@ class TripService : Service() {
                 if (canNotify) notificationManager.notify(NOTIFICATION_ID, notification)
             }
             is TripProgressEvent.ApproachingIntermediate -> {
-                val index = tripProgressManager?.lastConfirmedIndex?.plus(1) ?: 1
+                val index = (tripProgressManager?.lastConfirmedIndex ?: -1) + 1
                 val hint = plannedRoute?.transferHintAt(index)
 
                 val nextStopText = if (hint != null) "${event.station.name} ($hint)" else event.station.name

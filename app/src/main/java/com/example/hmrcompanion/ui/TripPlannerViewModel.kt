@@ -23,7 +23,9 @@ data class TripPlannerUiState(
     val fromStation: Station? = null,
     val toStation: Station? = null,
     val isTrackingActive: Boolean = false,
-    val alertDistanceMeters: Int = 400
+    val alertDistanceMeters: Int = 400,
+    val currentLatLng: Pair<Double, Double>? = null,
+    val lastConfirmedIndex: Int? = null
 )
 
 class TripPlannerViewModel(private val repository: StationRepository) : ViewModel() {
@@ -89,12 +91,12 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
 
     fun getPlannedRoute(): PlannedRoute? {
         val state = _uiState.value
-        if (!canStartTrip()) return null
+        if (state.fromStation == null || state.toStation == null || state.fromStation.name == state.toStation.name) return null
 
         return try {
             MultiLineRouteFinder(state.allLines).findRoute(
-                fromStationName = state.fromStation!!.name,
-                toStationName = state.toStation!!.name
+                fromStationName = state.fromStation.name,
+                toStationName = state.toStation.name
             )
         } catch (e: Exception) {
             null
@@ -102,6 +104,18 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
     }
 
     fun setTrackingActive(active: Boolean) {
-        _uiState.value = _uiState.value.copy(isTrackingActive = active)
+        _uiState.value = _uiState.value.copy(
+            isTrackingActive = active,
+            currentLatLng = if (!active) null else _uiState.value.currentLatLng,
+            lastConfirmedIndex = if (!active) null else _uiState.value.lastConfirmedIndex
+        )
+    }
+
+    fun updateLocation(lat: Double, lng: Double) {
+        _uiState.value = _uiState.value.copy(currentLatLng = Pair(lat, lng))
+    }
+
+    fun updateLastConfirmedIndex(index: Int?) {
+        _uiState.value = _uiState.value.copy(lastConfirmedIndex = index)
     }
 }
