@@ -1,5 +1,8 @@
 package com.example.hmrcompanion.domain
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Station(
     val seq: Int,
     val name: String,
@@ -8,6 +11,7 @@ data class Station(
     val interchange: String?
 )
 
+@Serializable
 data class MetroLine(
     val key: String,
     val name: String,
@@ -15,12 +19,14 @@ data class MetroLine(
     val stations: List<Station>
 )
 
+@Serializable
 data class RouteSegment(
     val stations: List<Station>,
     val lineKey: String,
     val lineName: String
 )
 
+@Serializable
 data class PlannedRoute(
     val segments: List<RouteSegment>,
     val interchangeStations: List<String>,

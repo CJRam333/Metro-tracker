@@ -17,7 +17,7 @@ class TripProgressManagerTest {
             Station(2, "Station B", 10.01, 10.01, null), // ~1.5km from A
             Station(3, "Station C", 10.02, 10.02, null)  // ~1.5km from B
         )
-        manager = TripProgressManager(route, 400.0)
+        manager = TripProgressManager(route, 400)
     }
 
     @Test

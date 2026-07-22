@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hmrcompanion.data.StationRepository
 import com.example.hmrcompanion.domain.MetroLine
+import com.example.hmrcompanion.domain.MultiLineRouteFinder
+import com.example.hmrcompanion.domain.PlannedRoute
 import com.example.hmrcompanion.domain.Station
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,12 +18,14 @@ import kotlinx.coroutines.launch
 data class TripPlannerUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
-    val allLines: List<MetroLine> = emptyList(),
-    val selectedLine: MetroLine? = null,
-    val stationsForSelectedLine: List<Station> = emptyList(),
+    val allLines: Map<String, MetroLine> = emptyMap(),
+    val allStations: List<Station> = emptyList(),
     val fromStation: Station? = null,
     val toStation: Station? = null,
-    val isTrackingActive: Boolean = false
+    val isTrackingActive: Boolean = false,
+    val alertDistanceMeters: Int = 400,
+    val currentLatLng: Pair<Double, Double>? = null,
+    val lastConfirmedIndex: Int? = null
 )
 
 class TripPlannerViewModel(private val repository: StationRepository) : ViewModel() {
@@ -37,10 +41,17 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val lines = repository.getAllLines()
+                val linesList = repository.getAllLines()
+                val linesMap = linesList.associateBy { it.key }
+                val uniqueStations = linesList
+                    .flatMap { it.stations }
+                    .distinctBy { it.name }
+                    .sortedBy { it.name }
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    allLines = lines
+                    allLines = linesMap,
+                    allStations = uniqueStations
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -51,19 +62,8 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
         }
     }
 
-    fun selectLine(lineKey: String) {
-        val currentLines = _uiState.value.allLines
-        val line = currentLines.find { it.key == lineKey }
-        _uiState.value = _uiState.value.copy(
-            selectedLine = line,
-            stationsForSelectedLine = line?.stations ?: emptyList(),
-            fromStation = null,
-            toStation = null
-        )
-    }
-
     fun selectFromStation(name: String) {
-        val station = _uiState.value.stationsForSelectedLine.find { it.name == name }
+        val station = _uiState.value.allStations.find { it.name == name }
         _uiState.value = _uiState.value.copy(fromStation = station)
 
         // Clear toStation if it's the same as the new fromStation
@@ -73,20 +73,49 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
     }
 
     fun selectToStation(name: String) {
-        val station = _uiState.value.stationsForSelectedLine.find { it.name == name }
+        val station = _uiState.value.allStations.find { it.name == name }
         _uiState.value = _uiState.value.copy(toStation = station)
+    }
+
+    fun setAlertDistance(meters: Int) {
+        _uiState.value = _uiState.value.copy(alertDistanceMeters = meters)
     }
 
     fun canStartTrip(): Boolean {
         val state = _uiState.value
-        return state.selectedLine != null &&
-               state.fromStation != null &&
+        return state.fromStation != null &&
                state.toStation != null &&
                state.fromStation.name != state.toStation.name &&
                !state.isTrackingActive
     }
 
+    fun getPlannedRoute(): PlannedRoute? {
+        val state = _uiState.value
+        if (state.fromStation == null || state.toStation == null || state.fromStation.name == state.toStation.name) return null
+
+        return try {
+            MultiLineRouteFinder(state.allLines).findRoute(
+                fromStationName = state.fromStation.name,
+                toStationName = state.toStation.name
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun setTrackingActive(active: Boolean) {
-        _uiState.value = _uiState.value.copy(isTrackingActive = active)
+        _uiState.value = _uiState.value.copy(
+            isTrackingActive = active,
+            currentLatLng = if (!active) null else _uiState.value.currentLatLng,
+            lastConfirmedIndex = if (!active) null else _uiState.value.lastConfirmedIndex
+        )
+    }
+
+    fun updateLocation(lat: Double, lng: Double) {
+        _uiState.value = _uiState.value.copy(currentLatLng = Pair(lat, lng))
+    }
+
+    fun updateLastConfirmedIndex(index: Int?) {
+        _uiState.value = _uiState.value.copy(lastConfirmedIndex = index)
     }
 }
