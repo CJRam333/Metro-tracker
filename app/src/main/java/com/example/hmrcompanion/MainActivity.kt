@@ -51,10 +51,13 @@ class MainActivity : ComponentActivity() {
                 if (intent.action == TripService.ACTION_LOCATION_UPDATE) {
                     val lat = intent.getDoubleExtra(TripService.EXTRA_LAT, 0.0)
                     val lng = intent.getDoubleExtra(TripService.EXTRA_LNG, 0.0)
+                    val accuracy = if (intent.hasExtra(TripService.EXTRA_ACCURACY)) {
+                        intent.getFloatExtra(TripService.EXTRA_ACCURACY, 0f)
+                    } else null
                     val index = intent.getIntExtra(TripService.EXTRA_LAST_CONFIRMED_INDEX, -1)
                     val resolvedIndex = if (index == -1) null else index
 
-                    tripPlannerViewModel?.updateLocation(lat, lng)
+                    tripPlannerViewModel?.updateLocation(lat, lng, accuracy)
                     tripPlannerViewModel?.updateLastConfirmedIndex(resolvedIndex)
                 }
             }
@@ -79,6 +82,7 @@ class MainActivity : ComponentActivity() {
                         TripMapScreen(
                             plannedRoute = viewModel.getPlannedRoute()!!,
                             currentLatLng = uiState.currentLatLng,
+                            locationAccuracy = uiState.locationAccuracy,
                             lastConfirmedIndex = uiState.lastConfirmedIndex,
                             onStopTrip = {
                                 viewModel.setTrackingActive(false)

@@ -68,4 +68,22 @@ class TripProgressManagerTest {
         val event = manager.onLocationUpdate(10.02, 10.02)
         assertEquals(TripProgressEvent.RouteComplete, event)
     }
+
+    @Test
+    fun `test initializeFromCurrentPosition snaps to closest station`() {
+        // Start closer to Station B than Station A
+        manager.initializeFromCurrentPosition(10.009, 10.009)
+        assertEquals(0, manager.lastConfirmedIndex) // Closest is B (index 1), so lastConfirmed is 0
+
+        // Start near Station A
+        manager.initializeFromCurrentPosition(10.001, 10.001)
+        assertEquals(null, manager.lastConfirmedIndex) // Closest is A (index 0), so lastConfirmed is null
+    }
+
+    @Test
+    fun `test initializeFromCurrentPosition near final station does not complete trip`() {
+        // Start near Station C (final station)
+        manager.initializeFromCurrentPosition(10.019, 10.019)
+        assertEquals(null, manager.lastConfirmedIndex) // Should do nothing, remain default null
+    }
 }
