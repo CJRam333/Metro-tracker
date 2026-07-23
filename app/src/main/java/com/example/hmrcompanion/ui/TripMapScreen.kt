@@ -29,6 +29,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.Polygon
 import org.osmdroid.views.overlay.Overlay
 import kotlinx.coroutines.delay
 
@@ -36,6 +37,7 @@ import kotlinx.coroutines.delay
 fun TripMapScreen(
     plannedRoute: PlannedRoute,
     currentLatLng: Pair<Double, Double>?,
+    locationAccuracy: Float? = null,
     lastConfirmedIndex: Int?,
     onStopTrip: () -> Unit
 ) {
@@ -44,7 +46,14 @@ fun TripMapScreen(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            setTileSource(org.osmdroid.tileprovider.tilesource.XYTileSource(
+                "Humanitarian",
+                1,
+                20,
+                256,
+                ".png",
+                arrayOf("https://a.tile.openstreetmap.fr/hot/", "https://b.tile.openstreetmap.fr/hot/")
+            ))
             setMultiTouchControls(true)
             setBuiltInZoomControls(true)
             controller.setZoom(14.0)
@@ -103,7 +112,7 @@ fun TripMapScreen(
     }
 
     // Route Overlays
-    LaunchedEffect(plannedRoute, currentLatLng, lastConfirmedIndex) {
+    LaunchedEffect(plannedRoute, currentLatLng, locationAccuracy, lastConfirmedIndex) {
         // Clear all overlays except our touch interceptor
         mapView.overlays.removeAll { it is Marker || it is Polyline }
 
@@ -168,6 +177,17 @@ fun TripMapScreen(
 
         // Draw live user position
         if (currentLatLng != null) {
+            if (locationAccuracy != null) {
+                val accuracyPolygon = Polygon(mapView)
+                val circlePoints = Polygon.pointsAsCircle(GeoPoint(currentLatLng.first, currentLatLng.second), locationAccuracy.toDouble())
+                accuracyPolygon.points = circlePoints
+                accuracyPolygon.fillPaint.color = Color.argb(50, 0, 150, 255) // Transparent light blue
+                accuracyPolygon.outlinePaint.color = Color.argb(100, 0, 150, 255)
+                accuracyPolygon.outlinePaint.strokeWidth = 2f
+                accuracyPolygon.outlinePaint.isAntiAlias = true
+                mapView.overlays.add(accuracyPolygon)
+            }
+
             val userMarker = Marker(mapView)
             userMarker.position = GeoPoint(currentLatLng.first, currentLatLng.second)
             userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)

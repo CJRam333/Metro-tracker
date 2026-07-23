@@ -6,6 +6,31 @@ class TripProgressManager(
 ) {
     internal var lastConfirmedIndex: Int? = null
 
+    fun initializeFromCurrentPosition(lat: Double, lng: Double) {
+        if (route.isEmpty()) return
+
+        var closestIndex = 0
+        var minDistance = Double.MAX_VALUE
+
+        for ((index, station) in route.withIndex()) {
+            val dist = distanceMeters(lat, lng, station.lat, station.lng)
+            if (dist < minDistance) {
+                minDistance = dist
+                closestIndex = index
+            }
+        }
+
+        if (closestIndex == route.size - 1) {
+            return
+        }
+
+        if (closestIndex == 0) {
+            lastConfirmedIndex = null
+        } else {
+            lastConfirmedIndex = closestIndex - 1
+        }
+    }
+
     fun onLocationUpdate(lat: Double, lng: Double): TripProgressEvent {
         if (route.isEmpty()) return TripProgressEvent.RouteComplete
 

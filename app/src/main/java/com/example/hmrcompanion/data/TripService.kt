@@ -43,6 +43,7 @@ class TripService : Service() {
     private var tripProgressManager: TripProgressManager? = null
     private var plannedRoute: PlannedRoute? = null
 
+    private var isFirstLocationUpdate = true
     private var hasAlertedDestination = false
     private var destinationName: String = "Unknown"
 
@@ -54,6 +55,7 @@ class TripService : Service() {
         const val ACTION_LOCATION_UPDATE = "com.hmr.LOCATION_UPDATE"
         const val EXTRA_LAT = "lat"
         const val EXTRA_LNG = "lng"
+        const val EXTRA_ACCURACY = "accuracy"
         const val EXTRA_LAST_CONFIRMED_INDEX = "lastConfirmedIndex"
     }
 
@@ -65,6 +67,11 @@ class TripService : Service() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
+                    if (isFirstLocationUpdate) {
+                        isFirstLocationUpdate = false
+                        tripProgressManager?.initializeFromCurrentPosition(location.latitude, location.longitude)
+                    }
+
                     tripProgressManager?.let { manager ->
                         val event = manager.onLocationUpdate(location.latitude, location.longitude)
                         handleTripEvent(event)
@@ -73,6 +80,7 @@ class TripService : Service() {
                     val intent = Intent(ACTION_LOCATION_UPDATE).apply {
                         putExtra(EXTRA_LAT, location.latitude)
                         putExtra(EXTRA_LNG, location.longitude)
+                        putExtra(EXTRA_ACCURACY, location.accuracy)
                         putExtra(EXTRA_LAST_CONFIRMED_INDEX, tripProgressManager?.lastConfirmedIndex ?: -1)
                     }
                     localBroadcastManager.sendBroadcast(intent)

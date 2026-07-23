@@ -25,6 +25,7 @@ data class TripPlannerUiState(
     val isTrackingActive: Boolean = false,
     val alertDistanceMeters: Int = 400,
     val currentLatLng: Pair<Double, Double>? = null,
+    val locationAccuracy: Float? = null,
     val lastConfirmedIndex: Int? = null
 )
 
@@ -111,8 +112,11 @@ class TripPlannerViewModel(private val repository: StationRepository) : ViewMode
         )
     }
 
-    fun updateLocation(lat: Double, lng: Double) {
-        _uiState.value = _uiState.value.copy(currentLatLng = Pair(lat, lng))
+    fun updateLocation(lat: Double, lng: Double, accuracy: Float? = null) {
+        _uiState.value = _uiState.value.copy(
+            currentLatLng = Pair(lat, lng),
+            locationAccuracy = accuracy
+        )
     }
 
     fun updateLastConfirmedIndex(index: Int?) {
